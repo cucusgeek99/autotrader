@@ -1,0 +1,31 @@
+# autotrader configuration
+exchange: binance          # ccxt exchange id (binance, bybit, ...)
+symbols:
+  - BTC/USDT
+  - ETH/USDT
+timeframe: 1h              # 1m, 5m, 15m, 1h, 4h, 1d
+history_limit: 6000        # bars of OHLCV to pull for backtesting/tuning
+
+# realistic friction applied in backtest + paper trading
+fees:
+  taker: 0.0006            # 0.06% per side (Binance taker ~0.06% no BNB discount)
+  slippage: 0.0005         # assumed 0.05% adverse fill
+
+# walk-forward optimization windows (in bars)
+walkforward:
+  train: 1500
+  test: 500
+  step: 500               # roll forward by this many bars each fold
+
+optimize:
+  trials: 60               # Optuna trials per fold
+  min_trades: 10           # reject params with too few trades (overfit guard)
+  objective: score         # score = OOS sharpe penalized by drawdown
+
+# paper trading portfolio
+paper:
+  starting_cash: 10000     # USDT
+  poll_seconds: 60         # how often the live loop checks for new bars
+
+knowledge_db: knowledge.db
+data_cache_dir: .cache

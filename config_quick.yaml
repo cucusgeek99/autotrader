@@ -1,0 +1,20 @@
+exchange: binance
+symbols: [BTC/USDT]
+timeframe: 1h
+history_limit: 4000
+fees: {taker: 0.0006, slippage: 0.0005}
+walkforward: {train: 1500, test: 500, step: 750}
+optimize: {trials: 20, min_trades: 8, objective: score}
+paper: {starting_cash: 10000, poll_seconds: 3600}  # match the hourly launchd cadence (correct Sharpe annualization)
+knowledge_db: knowledge.db
+data_cache_dir: .cache
+# LONG-ONLY smart-beta (lowbeta) — GATE REMOVED (2026-06-12). Decomposition proved the
+# stablecoin gate was an n=1 overfit to the 2022 crash: post-2022 it adds ZERO Sharpe
+# (1.24 gated == 1.24 ungated) and costs ~7%/yr return, while keeping the book idle in cash.
+# The real edge is the lowbeta tilt itself: post-2022 +50%/yr Sharpe 1.24 (vs market +26%/0.69),
+# and it cuts drawdown -64%→-37% on its own. Downside protection = lowbeta + the -25% kill-switch,
+# NOT the overfit gate. CAVEAT: 12-survivor universe inflates lowbeta (survivorship) — magnitude optimistic.
+strategy: {long_only: true, factor: lowbeta, lookback: 720, max_weight: 0.30}
+directional: {weight: 0.0, leverage: 1.0}   # fully invested, no leverage
+regime: {enabled: false}                     # gate OFF — always invested in the lowbeta basket
+risk: {max_gross_exposure: 1.05, max_position_pct: 0.3, max_drawdown_pct: 0.25, max_daily_loss_pct: 0.08}
