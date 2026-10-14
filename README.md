@@ -34,6 +34,12 @@ Textbook parameters, not tuned: every cell of a 12-combo grid (SMA 100–250 ×
 vol 30–60%) has Sharpe 0.88–1.16 and maxDD −24%..−53%. The price of the
 insurance: it lags buy&hold in a straight-up bull market.
 
+**Held-out check (10 coins never used to design it, each traded alone):** the
+drawdown cut is robust — smaller maxDD on **10/10** coins (median −49% vs −93%
+holding). The Sharpe gain is NOT: better on only 5/10. So the promise is
+"−40% instead of −90%", not "more return"; and asset choice matters — on alts
+the rule still loses (2022+ median ≈ +1%/yr vs −11% holding). Keep it on BTC/ETH.
+
 ```bash
 .venv/bin/python scripts/backtest_core.py        # reproduce the table + grid
 .venv/bin/python scripts/core_live.py            # PAPER run (daily via launchd: com.autotrader.core)
