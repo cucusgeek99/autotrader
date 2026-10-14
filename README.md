@@ -5,9 +5,44 @@ real market data, validates them walk-forward to avoid overfitting, remembers
 which strategy+params worked in which market regime, and paper-trades the
 champion live. Each run compounds its knowledge.
 
-> ⚠️ **Paper trading only.** No real money, no exchange API keys. This is a
-> research/learning tool. Markets are adversarial; a good backtest is not a
-> promise. Do not point this at live capital without understanding the risks.
+> ⚠️ Everything is paper/testnet by default. The **core book** (below) is the only
+> component meant for real capital, and only via explicit `--arm --confirm-live`.
+> A good backtest is not a promise.
+
+## ⭐ The core book — the real-capital strategy (start here)
+
+After the research arc (below) found no candle-based alpha that survives
+out-of-sample, and 4 months of live forward-testing confirmed it, the project's
+answer to *"help a trader actually make money"* is **disciplined risk-taking on
+the market itself**, not a secret edge:
+
+```
+weight_i = ½ × min(1, 40% / realized_vol_30d) × [close > SMA200]     # BTC, ETH; rest in USDT
+```
+
+Spot, long-only, **no leverage, no liquidation risk**, one decision per day, a
+2%-of-equity no-trade band, and a −45% catastrophe kill-switch.
+
+| BTC/ETH daily, fees incl. | CAGR | Sharpe | Max DD | Worst year |
+|---|---|---|---|---|
+| hold 50/50, 2017→2026 | +36.6% | 0.80 | **−87.9%** | −76.9% |
+| **core**, 2017→2026 | +25.9% | **0.99** | **−37.8%** | −17.1% |
+| hold 50/50, 2022→2026 | +3.9% | 0.35 | −68.3% | −65.1% |
+| **core**, 2022→2026 | **+21.8%** | **0.88** | **−21.1%** | −5.3% |
+
+Textbook parameters, not tuned: every cell of a 12-combo grid (SMA 100–250 ×
+vol 30–60%) has Sharpe 0.88–1.16 and maxDD −24%..−53%. The price of the
+insurance: it lags buy&hold in a straight-up bull market.
+
+```bash
+.venv/bin/python scripts/backtest_core.py        # reproduce the table + grid
+.venv/bin/python scripts/core_live.py            # PAPER run (daily via launchd: com.autotrader.core)
+# real account, in this order — keys: BINANCE_SPOT_API_KEY / BINANCE_SPOT_SECRET
+.venv/bin/python scripts/core_live.py --account                       # dry-run on real balances
+.venv/bin/python scripts/core_live.py --account --arm --confirm-live  # REAL orders
+```
+Every run tracks "hold 50/50" and "hold BTC" from the same start, on real
+prices; the dashboard's top card shows all three curves.
 
 ## The loop
 

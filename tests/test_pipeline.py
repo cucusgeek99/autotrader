@@ -743,3 +743,53 @@ def test_stablecoin_supply_regime():
     assert reg.iloc[45] == 1.0      # mid-growth → risk-on
     assert reg.iloc[-1] == 0.0      # contracting → risk-off
     assert set(reg.dropna().unique()) <= {0.0, 1.0}
+
+
+def test_core_weights_trend_and_vol_scaling():
+    from autotrader.core import core_weights, core_returns, summarize, closed_daily
+    idx = pd.date_range("2020-01-01", periods=400, freq="D")
+    rng = np.random.default_rng(0)
+    up = pd.Series(100 * np.exp(np.cumsum(0.003 + 0.01 * rng.standard_normal(400))), idx)
+    down = pd.Series(100 * np.exp(np.cumsum(-0.003 + 0.01 * rng.standard_normal(400))), idx)
+    wild = pd.Series(100 * np.exp(np.cumsum(0.004 + 0.06 * rng.standard_normal(400))), idx)
+    w = core_weights(pd.DataFrame({"UP": up, "DOWN": down}))
+    assert w["UP"].iloc[-1] == pytest.approx(0.5)      # calm uptrend → full 1/N sleeve
+    assert w["DOWN"].iloc[-1] == 0.0                   # below SMA200 → cash
+    assert (w.sum(axis=1) <= 1.0 + 1e-12).all()        # never levered
+    assert (w.iloc[:199] == 0).all().all()             # warm-up → no position
+    ww = core_weights(pd.DataFrame({"UP": up, "WILD": wild}))
+    if ww["WILD"].iloc[-1] > 0:                        # high vol → sized down
+        assert ww["WILD"].iloc[-1] < 0.5
+    r = core_returns(pd.DataFrame({"UP": up, "DOWN": down}))
+    assert summarize(r)["max_dd"] <= 0
+    # today's forming candle is dropped
+    df = pd.DataFrame({"close": [1.0, 2.0]},
+                      index=pd.to_datetime(["2026-01-01", "2026-01-02"], utc=True))
+    assert len(closed_daily(df, now=pd.Timestamp("2026-01-02 15:00", tz="UTC"))) == 1
+
+
+def test_spot_broker_trades_only_delta(tmp_path):
+    from autotrader.live.spot_broker import SpotBroker
+    from autotrader.risk import RiskLimits, RiskManager
+
+    class FakeEx:
+        markets = {"BTC/USDT": {"limits": {"cost": {"min": 5}}},
+                   "ETH/USDT": {"limits": {"cost": {"min": 5}}}}
+        def amount_to_precision(self, s, a):
+            return f"{a:.6f}"
+
+    rm = RiskManager(RiskLimits(max_position_pct=0.5), state_path=str(tmp_path / "r.json"))
+    b = SpotBroker(risk=rm, _ex=FakeEx())
+    px = {"BTC/USDT": 100.0, "ETH/USDT": 10.0}
+    # holding 40 USDT of BTC, target 50% of 100 equity → buy ~10; ETH target 0 → sell all
+    eq, intents = b.rebalance_to({"BTC/USDT": 0.5, "ETH/USDT": 0.0}, cash=40.0,
+                                 qty={"BTC/USDT": 0.4, "ETH/USDT": 2.0}, prices=px)
+    assert eq == pytest.approx(100.0)
+    by = {i["symbol"]: i for i in intents}
+    assert by["BTC/USDT"]["side"] == "buy" and by["BTC/USDT"]["notional"] == pytest.approx(10.0)
+    assert by["ETH/USDT"]["side"] == "sell" and by["ETH/USDT"]["amount"] == pytest.approx(2.0)
+    assert intents[0]["symbol"] == "ETH/USDT"           # sells go first to fund buys
+    # tiny drift inside the 2% band → nothing traded
+    _, intents = b.rebalance_to({"BTC/USDT": 0.5, "ETH/USDT": 0.0}, cash=50.0,
+                                qty={"BTC/USDT": 0.505, "ETH/USDT": 0.0}, prices=px)
+    assert all(i["status"].startswith("skipped") for i in intents if "symbol" in i)

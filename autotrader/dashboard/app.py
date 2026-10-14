@@ -141,6 +141,31 @@ def create_app(config_path: str = "config.yaml"):
             "curve": [{"time": r["ts"], "equity": r["equity"]} for r in recs[-300:]],
         })
 
+    @app.get("/api/core")
+    def core_api(mode: str = "paper"):
+        """Core book (vol-target × SMA200) vs buy&hold benchmarks, from its daily ledger."""
+        path = Path(f"{cfg['data_cache_dir']}/core_{mode}.jsonl")
+        if not path.exists():
+            return JSONResponse({"exists": False})
+        recs = []
+        for line in path.read_text().splitlines():
+            try:
+                recs.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+        if not recs:
+            return JSONResponse({"exists": False})
+        last, s0 = recs[-1], recs[0]["bench"]["hold_5050"]   # same starting capital for all three
+        return JSONResponse({
+            "exists": True, "mode": mode, "start": recs[0]["ts"][:10], "last": last["ts"][:16],
+            "equity": last["equity"], "ret": last["equity"] / s0 - 1,
+            "bench": {k: v / recs[0]["bench"][k] - 1 for k, v in last["bench"].items()},
+            "weights": last["weights"], "halted": last.get("halted", False),
+            "curve": [{"time": r["ts"][:10], "core": r["equity"],
+                       "hold_5050": r["bench"]["hold_5050"], "hold_btc": r["bench"]["hold_btc"]}
+                      for r in recs],
+        })
+
     @app.get("/api/health")
     def health():
         """launchd job status: registered?, last exit code, last run time."""
@@ -206,6 +231,9 @@ _INDEX_HTML = """<!doctype html>
 <header><h1>autotrader</h1><span class="badge" id="sym">paper trading · self-tuning lab</span>
   <span class="badge" id="health" style="margin-left:auto"></span></header>
 <main>
+  <div class="card wide live" id="corecard"><h2>● CORE — vol-target × SMA200 · spot BTC/ETH vs just holding</h2>
+    <div id="corestats"></div>
+    <canvas id="corecurve" height="70"></canvas></div>
   <div class="card wide live"><h2>● LIVE — testnet futures (findings_xs)</h2>
     <div id="livestats"></div>
     <div id="verdict" style="margin:12px 0"></div>
@@ -277,7 +305,29 @@ async function loadLive(){
         y:{ticks:{color:'#8b949e'},grid:{color:'#21262d'}}}}});
   }
 }
+async function loadCore(){
+  const c = await (await fetch('/api/core')).json();
+  if(!c.exists){ document.getElementById('corestats').innerHTML='<span class="badge">no run yet — scripts/core_live.py</span>'; return; }
+  const pct = x=>`<b class="${x>=0?'pos':'neg'}">${x>=0?'+':''}${(x*100).toFixed(1)}%</b>`;
+  const w = Object.entries(c.weights).map(([k,v])=>`${k.split('/')[0]} ${(v*100).toFixed(0)}%`).join(' · ');
+  document.getElementById('corestats').innerHTML =
+    (c.halted?'<span class="v red">KILL-SWITCH HALTED</span> ':'')+
+    `<span class="stat"><b>$${f(c.equity)}</b><span>EQUITY (${c.mode}, since ${c.start})</span></span>`+
+    `<span class="stat">${pct(c.ret)}<span>CORE</span></span>`+
+    `<span class="stat">${pct(c.bench.hold_5050)}<span>HOLD 50/50</span></span>`+
+    `<span class="stat">${pct(c.bench.hold_btc)}<span>HOLD BTC</span></span>`+
+    `<span class="stat"><b>${w}</b><span>TARGET (rest = USDT)</span></span>`;
+  if(window._cc) window._cc.destroy();
+  const ds=(k,col,lab)=>({label:lab,data:c.curve.map(r=>r[k]),borderColor:col,pointRadius:0,borderWidth:2,tension:.2});
+  window._cc = new Chart(document.getElementById('corecurve'),{type:'line',
+    data:{labels:c.curve.map(r=>r.time),datasets:[ds('core','#58a6ff','core'),
+      ds('hold_5050','#8b949e','hold 50/50'),ds('hold_btc','#d29922','hold BTC')]},
+    options:{plugins:{legend:{labels:{color:'#8b949e'}}},scales:{
+      x:{ticks:{color:'#8b949e',maxTicksLimit:8},grid:{color:'#21262d'}},
+      y:{ticks:{color:'#8b949e'},grid:{color:'#21262d'}}}}});
+}
 async function load(){
+  await loadCore().catch(e=>console.error('core',e));
   await loadLive().catch(e=>console.error('live',e));
   const p = await (await fetch('/api/portfolio')).json();
   const lb = await (await fetch('/api/leaderboard')).json();

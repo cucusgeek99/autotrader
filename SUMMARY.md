@@ -4,7 +4,7 @@ A self-tuning crypto trading **research lab and paper-trading system**, built fr
 an ambitious idea ("a bot that sets itself up with strategies based on testing,
 tuning, and knowledge") into a rigorous, honest quant research pipeline.
 
-> ⚠️ **Paper only.** No real money, no API keys. A good backtest is not a promise.
+> ⚠️ Paper/testnet by default; the core book is the only real-capital component (explicit `--arm --confirm-live`).
 
 ## Two halves
 
@@ -54,6 +54,20 @@ on-chain, basis/term-structure), not more reprocessing.
 The lasting deliverables: a working self-tuning system, a reusable validation
 harness that won't ship false positives, and `findings_xs` — a real, if modest,
 market-neutral sleeve you can watch trade live on the dashboard.
+
+## 4-month live forward test (2026-06-18 → 2026-10-14) — the verdict that redirected the project
+
+| Sleeve | Result | vs just holding |
+|---|---|---|
+| lowbeta long-only (testnet) | testnet +16.8%; **same weights on mainnet prices +20.2%**, Sharpe 2.2, DD −8.6% | BTC hold **+26.7%**, eq-wt 12 +28.0% → no alpha, just lower beta |
+| delta-neutral carry (paper) | **−1.3%** — 54 entries, ~$120 fees vs +$48 funding | turnover wall again → stopped |
+| daily dip-buyer (paper) | −0.3%, 4 trades in 4 months | inconclusive |
+
+Lessons: testnet prices flatter (Sharpe 6.6 there vs 2.2 on mainnet) — always
+replay on mainnet; and nothing beat holding the market. Hence the pivot to the
+**core book** (README): capture market upside with vol-targeting + SMA200 so a
+trader never sits through −80%. Backtest 2017→2026: maxDD −38% vs −88% for
+holding, Sharpe 0.99 vs 0.80; since 2022 +21.8%/yr vs +3.9%/yr.
 
 ## Run it
 

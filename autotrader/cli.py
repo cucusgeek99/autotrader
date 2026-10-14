@@ -1299,7 +1299,11 @@ def live(
                 console.print(f"[red]tick error:[/] {exc}")
             _time.sleep(poll)
     else:
-        tick()
+        try:
+            tick()
+        except Exception as exc:   # network blip (e.g. Mac waking) → skip this hour, no traceback spam
+            console.print(f"[yellow]skip tick: {type(exc).__name__}: {str(exc)[:120]}[/]")
+            raise typer.Exit(1)
         if broker.dry_run:
             console.print("[dim]DRY-RUN: nothing sent. Next: get FUTURES testnet keys (see TESTNET.md), "
                           "then `autotrader live --testnet --arm --loop`.[/]")
