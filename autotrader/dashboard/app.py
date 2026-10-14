@@ -231,7 +231,7 @@ _INDEX_HTML = """<!doctype html>
 <header><h1>autotrader</h1><span class="badge" id="sym">paper trading · self-tuning lab</span>
   <span class="badge" id="health" style="margin-left:auto"></span></header>
 <main>
-  <div class="card wide live" id="corecard"><h2>● CORE — vol-target × SMA200 · spot BTC/ETH vs just holding</h2>
+  <div class="card wide live" id="corecard"><h2>● CORE — vol-target × 4-speed trend · spot BTC/ETH vs just holding</h2>
     <div id="corestats"></div>
     <canvas id="corecurve" height="70"></canvas></div>
   <div class="card wide live"><h2>● LIVE — testnet futures (findings_xs)</h2>

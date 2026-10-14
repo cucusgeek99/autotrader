@@ -17,24 +17,31 @@ answer to *"help a trader actually make money"* is **disciplined risk-taking on
 the market itself**, not a secret edge:
 
 ```
-weight_i = ½ × min(1, 40% / realized_vol_30d) × [close > SMA200]     # BTC, ETH; rest in USDT
+weight_i = ½ × min(1, 40% / realized_vol_30d) × mean(close > SMA50, SMA100, SMA150, SMA200)   # BTC, ETH; rest in USDT
 ```
 
 Spot, long-only, **no leverage, no liquidation risk**, one decision per day, a
-2%-of-equity no-trade band, and a −45% catastrophe kill-switch.
+2%-of-equity no-trade band, and a −45% catastrophe kill-switch. Each of the
+four trend speeds controls ¼ of a coin's sleeve.
 
 | BTC/ETH daily, fees incl. | CAGR | Sharpe | Max DD | Worst year |
 |---|---|---|---|---|
 | hold 50/50, 2017→2026 | +36.6% | 0.80 | **−87.9%** | −76.9% |
-| **core**, 2017→2026 | +25.9% | **0.99** | **−37.8%** | −17.1% |
+| SMA200-only, 2017→2026 | +25.9% | 0.99 | −37.8% | −17.1% |
+| **core (4-speed)**, 2017→2026 | +30.6% | **1.17** | **−32.3%** | −17.5% |
 | hold 50/50, 2022→2026 | +3.9% | 0.35 | −68.3% | −65.1% |
-| **core**, 2022→2026 | **+21.8%** | **0.88** | **−21.1%** | −5.3% |
+| **core (4-speed)**, 2022→2026 | **+21.2%** | **0.91** | **−22.8%** | −17.5% |
 
-Textbook parameters, not tuned: every cell of a 12-combo grid (SMA 100–250 ×
-vol 30–60%) has Sharpe 0.88–1.16 and maxDD −24%..−53%. The price of the
-insurance: it lags buy&hold in a straight-up bull market.
+**Why a blend of speeds** (`scripts/config_tournament.py`, 64 configs = asset
+mix × 8 trend filters × 4 vol targets): no single setup is reliably best.
+Picking the best-so-far config each year did *worse* out-of-sample than a fixed
+rule (Sharpe 1.05 vs 1.17), and the in-sample winner's edge over the core
+deflates to DSR 0.00. Averaging the four classic speeds requires no selection
+and beats SMA200-only on held-out coins (median Sharpe 0.78 vs 0.62, maxDD −43%
+vs −49%). Its cost: a worse early-crash year (2022: −17% vs −5%). It lags
+buy&hold in a straight-up bull market.
 
-**Held-out check (10 coins never used to design it, each traded alone):** the
+**Held-out check (SMA200 version, 10 coins never used to design it, each traded alone):** the
 drawdown cut is robust — smaller maxDD on **10/10** coins (median −49% vs −93%
 holding). The Sharpe gain is NOT: better on only 5/10. So the promise is
 "−40% instead of −90%", not "more return"; and asset choice matters — on alts

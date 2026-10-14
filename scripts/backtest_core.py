@@ -25,14 +25,16 @@ def main() -> None:
         print(f"=== from {start or closes.index[0].date()}")
         row("hold 50/50", hold[start:] if start else hold)
         c = core_returns(closes)
-        row("core (vol40 × SMA200)", c[start:] if start else c)
-    print("=== robustness grid (full period): sharpe / maxDD")
-    for sma in (100, 150, 200, 250):
-        cells = []
-        for tv in (0.3, 0.4, 0.6):
-            m = summarize(core_returns(closes, target_vol=tv, sma_window=sma))
-            cells.append(f"vol{int(tv*100)}: {m['sharpe']:.2f}/{m['max_dd']:.0%}")
-        print(f"  SMA{sma:<4} " + "   ".join(cells))
+        row("core (vol40 × 4-speed)", c[start:] if start else c)
+        s2 = core_returns(closes, sma_windows=(200,))
+        row("SMA200 only", s2[start:] if start else s2)
+    print("=== vol-target sensitivity (full period): sharpe / maxDD")
+    cells = []
+    for tv in (0.3, 0.4, 0.6):
+        m = summarize(core_returns(closes, target_vol=tv))
+        cells.append(f"vol{int(tv*100)}: {m['sharpe']:.2f}/{m['max_dd']:.0%}")
+    print("  " + "   ".join(cells))
+    print("(full config search: scripts/config_tournament.py)")
 
 
 if __name__ == "__main__":

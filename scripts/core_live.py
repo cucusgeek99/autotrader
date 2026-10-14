@@ -1,4 +1,4 @@
-"""Core book daily runner — vol-target × SMA200, spot, long-only (see autotrader/core.py).
+"""Core book daily runner — vol-target × 4-speed trend, spot, long-only (see autotrader/core.py).
 
 Three modes, safest by default:
 
@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from autotrader.core import CORE_UNIVERSE, FEE, core_weights, closed_daily
+from autotrader.core import CORE_UNIVERSE, FEE, SMA_WINDOWS, core_weights, closed_daily
 from autotrader.data.feed import latest_ohlcv
 from autotrader.live.alerts import notify
 from autotrader.live.spot_broker import SpotBroker
@@ -145,8 +145,9 @@ def main() -> int:
 
     # ---- report ----
     for s in CORE_UNIVERSE:
-        trend = "↑ above SMA200" if closes[s].iloc[-1] > closes[s].tail(200).mean() else "↓ below SMA200 → cash"
-        log(f"  {s:9} target {target[s]:5.1%}  ({trend})")
+        on = [n for n in SMA_WINDOWS if closes[s].iloc[-1] > closes[s].tail(n).mean()]
+        trend = f"trend {len(on)}/{len(SMA_WINDOWS)} on" + (f" (above SMA {','.join(map(str, on))})" if on else " → cash")
+        log(f"  {s:9} target {target[s]:5.1%}  {trend}")
     for i in intents:
         if "symbol" in i:
             log(f"    {i['side'].upper():4} {i['symbol']:9} ${i['notional']:>9,.2f}  [{i['status']}]")

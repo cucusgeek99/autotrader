@@ -4,16 +4,19 @@ After the whole research arc (no candle-based alpha survived out-of-sample, see
 SUMMARY.md), the strategy that actually helps a trader keep and grow money is not
 a secret edge but disciplined risk-taking on the market itself:
 
-  weight_i = (1/N) × min(1, TARGET_VOL / realized_vol_i) × [close_i > SMA_i]
+  weight_i = (1/N) × min(1, TARGET_VOL / realized_vol_i) × mean_k[close_i > SMA_k]
 
-  * vol-targeting  — size down when a coin gets wild, so one crash can't wreck you
-  * SMA200 filter  — sit in cash (USDT) while a coin is in a long-term downtrend
-  * equal sleeves  — 1/N per coin, leftover stays in stablecoins
+  * vol-targeting   — size down when a coin gets wild, so one crash can't wreck you
+  * 4-speed trend   — SMA 50/100/150/200 each vote for ¼ of the sleeve; in a long
+                      downtrend all four are off → cash (USDT)
+  * equal sleeves   — 1/N per coin, leftover stays in stablecoins
 
-Textbook parameters, NOT tuned: a 36-combo grid (SMA 100-250 × vol 30-60% ×
-window 20-60) gives Sharpe 0.81-1.15 and maxDD -22%..-55% on BTC/ETH 2017-2026,
-vs buy&hold Sharpe 0.77 / maxDD -88% — a plateau, not a lucky point.
-Cost of the insurance: it lags buy&hold in a straight-up bull market.
+Why a blend, not one SMA: a 64-config tournament (scripts/config_tournament.py)
+found NO single speed reliably better — picking last year's best each year did
+WORSE out-of-sample than a fixed rule, and the in-sample winner's edge deflated to
+DSR 0.00. Averaging speeds needs no selection: 2018-2026 Sharpe 1.20 / maxDD -32%
+(vs SMA200-only 1.02 / -38%, hold 0.65 / -83%), and better on 10 unseen coins
+(median Sharpe 0.78 vs 0.62). Cost: a worse early-crash year (2022 -17% vs -5%).
 
 Decisions use the LAST CLOSED daily candle only (no look-ahead).
 """
@@ -25,13 +28,13 @@ import pandas as pd
 CORE_UNIVERSE = ["BTC/USDT", "ETH/USDT"]
 TARGET_VOL = 0.40      # annualized vol each sleeve is scaled to
 VOL_WINDOW = 30        # days of returns for realized vol
-SMA_WINDOW = 200       # long-term trend filter
+SMA_WINDOWS = (50, 100, 150, 200)   # trend speeds, equally weighted
 FEE = 0.001            # spot taker fee per side (0.1%)
 BAND = 0.02            # skip trades smaller than 2% of equity (fee saver)
 
 
 def core_weights(closes: pd.DataFrame, target_vol: float = TARGET_VOL,
-                 vol_window: int = VOL_WINDOW, sma_window: int = SMA_WINDOW,
+                 vol_window: int = VOL_WINDOW, sma_windows: tuple = SMA_WINDOWS,
                  periods_per_year: int = 365) -> pd.DataFrame:
     """Target weight per coin for each bar, using data up to and including that bar.
 
@@ -40,9 +43,10 @@ def core_weights(closes: pd.DataFrame, target_vol: float = TARGET_VOL,
     rets = closes.pct_change()
     vol = rets.rolling(vol_window).std() * np.sqrt(periods_per_year)
     scale = (target_vol / vol).clip(upper=1.0)
-    trend = (closes > closes.rolling(sma_window).mean()).astype(float)
+    trend = sum((closes > closes.rolling(n).mean()).astype(float) for n in sma_windows) / len(sma_windows)
     w = scale * trend / closes.shape[1]
-    return w.fillna(0.0)
+    warm = closes.rolling(max(sma_windows)).mean().isna()   # no position until every speed exists
+    return w.mask(warm, 0.0).fillna(0.0)
 
 
 def core_returns(closes: pd.DataFrame, fee: float = FEE, **kw) -> pd.Series:
