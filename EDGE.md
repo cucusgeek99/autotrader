@@ -659,3 +659,25 @@ never backtested.
    short the bottom (market-neutral; removes beta).
 4. **Finer bars** — order flow is stronger at 1–5m; needs a tick/L2 data
    subscription to backtest properly.
+
+## Refuted ideas — October 2026 (don't re-test these by accident)
+
+All run with a protocol fixed before looking: parameters chosen on a DEV slice
+only, verdict on a never-seen TEST slice, held-out instruments where possible.
+
+| Idea | Script | DEV | TEST (verdict) | Why it fails |
+|---|---|---|---|---|
+| 5m cascade fade (k·σ move + volume spike → fade) | `scalp_scan.py` H1 | +2.9 bps gross | −11 bps (BTC/ETH), −3 bps (6 held-out) | no edge even at zero fees |
+| 5m maker dip-buy (limit below VWAP-z<−2, trade-through fills) | `scalp_scan.py` H2 | +10 bps gross | +0.8 bps / −0.2 bps held-out (n=244) | DEV-period artefact |
+| Time-of-day 30-min slots | `scalp_scan.py` H3 | t = 6–8 | t ≈ 1.3, ~1 bp | classic overfit |
+| Perp/spot basis reversion (5m) | `scalp_scan.py` H4 | +1.7 bps, t = 6 | +1–3.6 bps, t = 1.7–3 | **real**, but 10× below the 19 bps round-trip — market-maker only |
+| Short new perp listings, BTC-hedged, fees + funding | `listing_short.py` | mean +20%, t = 6.6 | mean +0.6%, t = 0.06 | median trade wins (+25%, 70%) but squeezes kill the mean; stop-loss made it worse; 2025-26 listings squeeze harder |
+| Funding-crowding overlay on the core (halve when 30d funding > 15%/yr) | inline (see SUMMARY) | Sharpe 1.44 vs 1.40, CAGR 27% vs 39% | Sharpe 1.29 vs 1.23, DD −20% vs −23% | within noise after 12 configs — not adopted |
+| Pick the best core config each year | `config_tournament.py` | in-sample winner Sharpe 1.29 | walk-forward 1.05 vs fixed 1.17; DSR 0.00 | selection hurts → core uses a blend of 4 trend speeds instead |
+
+Data: `fetch_5m.py` (1y of 5m perp+spot klines, 8 coins); `listing_short.py --fetch`
+(515 USDT perps listed 2023→2026-07 incl. 102 delisted).
+
+**Takeaway.** Measurable 5m regularities are worth 1–4 bps; retail pays 4–19 bps
+per round trip. Event effects (listings) are real on the median and broken by fat
+tails. The core book (README) remains the strategy for real capital.
