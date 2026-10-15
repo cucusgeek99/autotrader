@@ -674,10 +674,23 @@ only, verdict on a never-seen TEST slice, held-out instruments where possible.
 | Short new perp listings, BTC-hedged, fees + funding | `listing_short.py` | mean +20%, t = 6.6 | mean +0.6%, t = 0.06 | median trade wins (+25%, 70%) but squeezes kill the mean; stop-loss made it worse; 2025-26 listings squeeze harder |
 | Funding-crowding overlay on the core (halve when 30d funding > 15%/yr) | inline (see SUMMARY) | Sharpe 1.44 vs 1.40, CAGR 27% vs 39% | Sharpe 1.29 vs 1.23, DD −20% vs −23% | within noise after 12 configs — not adopted |
 | Pick the best core config each year | `config_tournament.py` | in-sample winner Sharpe 1.29 | walk-forward 1.05 vs fixed 1.17; DSR 0.00 | selection hurts → core uses a blend of 4 trend speeds instead |
+| Day trading — opening-range breakout (first R h, stop) | `daytrade_scan.py` D1 | +10 bps (BTC/ETH), −4 bps held-out | −7.7 bps, day-t −1.0 | costs eat it; doesn't transfer to alts |
+| Day trading — intraday momentum (00→16h move > 1σ → ride to close) | `daytrade_scan.py` D2 | +32 bps, book Sharpe 0.7 | +31 bps but day-t 1.6, median −10 bps | **looked like a PASS** with per-trade t 4.25 — 12 coins on the same day are one bet; isolated cell (T12/T20 negative), mostly long-side beta |
+| Day trading — fade/follow a >2.5σ day the next day | `daytrade_scan.py` D3 | +83 bps (n=96) | −14 bps | small-n DEV mirage |
+| Day trading — session drift (Asia/EU/US/all-day) | `daytrade_scan.py` D4 | all-day long +9 bps | −10 bps | that's just beta minus 12–16 bps/day of fees |
+| Day trading — volatility breakout ("Korean VBO", Larry Williams) | `daytrade_scan.py` D5 | +65 bps, t 3.6 | +33 bps, day-t −0.3 | long-only + trend filter = trend-following beta; core already owns that |
 
-Data: `fetch_5m.py` (1y of 5m perp+spot klines, 8 coins); `listing_short.py --fetch`
+Data: `fetch_5m.py` (1y of 5m perp+spot klines, 8 coins); `fetch_1h.py` (1h perp
+klines + funding 2020→2026, 12 coins; day trading DEV < 2024-07 ≤ TEST); `listing_short.py --fetch`
 (515 USDT perps listed 2023→2026-07 incl. 102 delisted).
 
+**Methodology lesson (day-trading scan).** Pool trades across coins and the t-stat
+lies: same-day trades on correlated coins are one bet. The verdict must use the
+day-clustered t (or the book's daily t). `daytrade_scan.py` does; the per-trade t in
+`scalp_scan.py` / `listing_short.py` is optimistic for the same reason (both failed
+anyway).
+
 **Takeaway.** Measurable 5m regularities are worth 1–4 bps; retail pays 4–19 bps
-per round trip. Event effects (listings) are real on the median and broken by fat
+per round trip. Day-trading playbooks (1h, flat overnight) pay 12–16 bps a day in fees
+and none survives. Event effects (listings) are real on the median and broken by fat
 tails. The core book (README) remains the strategy for real capital.
