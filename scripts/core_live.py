@@ -12,7 +12,8 @@ Every run also tracks two benchmarks started the same day with the same capital:
 50/50 BTC/ETH buy&hold and BTC buy&hold — so the core is always judged against
 "just holding", on real prices.
 
-Run once a day, shortly after 00:00 UTC (the daily candle close).
+Scheduled hourly at :20; only the first successful run of each UTC day trades (the
+others are no-ops), so a Mac that was asleep or offline at 00:20 catches up at wake.
 State: .cache/core_<mode>.json   Ledger: .cache/core_<mode>.jsonl   Log: .cache/core.log
 """
 from __future__ import annotations
@@ -74,6 +75,7 @@ def main() -> int:
     ap.add_argument("--arm", action="store_true", help="actually send orders")
     ap.add_argument("--testnet", action="store_true", help="spot testnet (testnet.binance.vision)")
     ap.add_argument("--confirm-live", action="store_true", help="required for REAL mainnet orders")
+    ap.add_argument("--force", action="store_true", help="run even if today's rebalance is already done")
     a = ap.parse_args()
 
     if a.account and a.arm and not a.testnet and not a.confirm_live:
@@ -85,6 +87,8 @@ def main() -> int:
     state_path, ledger_path = f".cache/core_{mode}.json", f".cache/core_{mode}.jsonl"
     Path(".cache").mkdir(exist_ok=True)
     today = datetime.now(timezone.utc).date().isoformat()
+    if load(state_path).get("last_run") == today and not a.force:
+        return 0   # already done today — the hourly scheduler retries are no-ops
     log(f"=== core book · {mode} · {today} ===")
 
     try:

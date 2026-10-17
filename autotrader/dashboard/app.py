@@ -143,7 +143,7 @@ def create_app(config_path: str = "config.yaml"):
 
     @app.get("/api/core")
     def core_api(mode: str = "paper"):
-        """Core book (vol-target × SMA200) vs buy&hold benchmarks, from its daily ledger."""
+        """Core book (vol-target × 4-speed trend) vs buy&hold benchmarks, from its daily ledger."""
         path = Path(f"{cfg['data_cache_dir']}/core_{mode}.jsonl")
         if not path.exists():
             return JSONResponse({"exists": False})
