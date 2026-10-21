@@ -80,7 +80,10 @@ class SpotBroker:
             amount = abs(delta) / px
             if side == "sell":
                 amount = min(amount, qty.get(s, 0.0))
-            amount = float(ex.amount_to_precision(s, amount)) if amount > 0 else 0.0
+            try:
+                amount = float(ex.amount_to_precision(s, amount)) if amount > 0 else 0.0
+            except Exception:   # ccxt raises when the delta is below one lot step → nothing to trade
+                amount = 0.0
             notional = amount * px
             min_cost = ((ex.markets[s].get("limits") or {}).get("cost") or {}).get("min") or 5.0
             intent = {"symbol": s, "side": side, "weight": round(adjusted[s], 4),

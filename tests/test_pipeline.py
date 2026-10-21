@@ -793,3 +793,13 @@ def test_spot_broker_trades_only_delta(tmp_path):
     _, intents = b.rebalance_to({"BTC/USDT": 0.5, "ETH/USDT": 0.0}, cash=50.0,
                                 qty={"BTC/USDT": 0.505, "ETH/USDT": 0.0}, prices=px)
     assert all(i["status"].startswith("skipped") for i in intents if "symbol" in i)
+    # delta below one lot step: ccxt raises InvalidOrder — must be a skip, not a crash
+    class StrictEx(FakeEx):
+        def amount_to_precision(self, s, a):
+            if a < 1e-4:
+                raise ValueError("amount must be greater than minimum amount precision")
+            return f"{a:.4f}"
+    b = SpotBroker(risk=rm, _ex=StrictEx())
+    _, intents = b.rebalance_to({"BTC/USDT": 0.5, "ETH/USDT": 0.0}, cash=50.0,
+                                qty={"BTC/USDT": 0.50000001, "ETH/USDT": 0.0}, prices=px)
+    assert all(i["status"].startswith("skipped") for i in intents if "symbol" in i)
